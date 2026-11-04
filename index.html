@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Khu ưu tiên Hiệp Thạnh</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+<style>
+  html, body { margin: 0; height: 100%; font-family: "Times New Roman", serif; }
+  #map { position: absolute; top: 44px; bottom: 0; left: 0; right: 0; }
+  #top { position: absolute; top: 0; left: 0; right: 0; height: 44px; background: #1B5E20; color: #fff;
+         display: flex; align-items: center; padding: 0 12px; font-size: 17px; font-weight: bold; gap: 10px; }
+  #top small { font-weight: normal; opacity: .85; }
+  #btnPanel { margin-left: auto; background: #fff; color: #1B5E20; border: 0; border-radius: 4px;
+              padding: 5px 10px; font: bold 14px "Times New Roman", serif; cursor: pointer; }
+  #panel { position: absolute; top: 54px; left: 54px; width: 330px; max-height: calc(100% - 74px); overflow: auto;
+           background: #fff; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.3); z-index: 1000; font-size: 14px; }
+  #panel.an { display: none; }
+  .vung { border-left: 6px solid; padding: 8px 10px; border-bottom: 1px solid #ddd; cursor: pointer; }
+  .vung:hover { background: #f3f7f3; }
+  .vung b { font-size: 15px; }
+  .vung .dt { color: #444; margin-top: 2px; }
+  .chuthich { padding: 8px 10px; font-size: 13px; color: #555; }
+  .popup table { border-collapse: collapse; font-family: "Times New Roman", serif; font-size: 13px; }
+  .popup th { background: #1B5E20; color: #fff; text-align: left; padding: 3px 6px; }
+  .popup td { border: 1px solid #ccc; padding: 3px 6px; vertical-align: top; }
+  .nhan { background: none; border: 0; box-shadow: none; font: bold 14px "Times New Roman", serif;
+          color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  @media (max-width: 600px) {
+    #panel { left: 10px; right: 10px; width: auto; top: auto; bottom: 10px; max-height: 45%; }
+    #top small { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="top">Khu ưu tiên làm sớm - KCN Hiệp Thạnh <small>(bản 04/11/2026)</small>
+  <button id="btnPanel">Các vùng</button></div>
+<div id="map"></div>
+<div id="panel"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://unpkg.com/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.js"></script>
+<script src="data/vung.js"></script>
+<script>
+// ===== BASE MAP (theo khung trang HIEPTHANH-IP) =====
+var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19});
+var satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19});
+var hybrid = L.layerGroup([satellite, L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {opacity: .4})]);
+
+// Nen ve tinh chong ranh quy hoach (chot 04/11)
+var map = L.map('map', {center: [11.157, 106.26], zoom: 16, layers: [satellite]});
+
+// ===== NUT VE VI TRI HIEN TAI =====
+var userMarker = null;
+var locateControl = L.control({position: 'topleft'});
+locateControl.onAdd = function () {
+  var div = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+  div.style.cssText = 'background:#fff;padding:6px;cursor:pointer;font-size:18px';
+  div.title = 'Về vị trí của tôi';
+  div.innerHTML = '📍';
+  div.onclick = function () { if (userMarker) map.setView(userMarker.getLatLng(), 17); };
+  return div;
+};
+locateControl.addTo(map);
+
+// ===== TOOL DO =====
+var drawnItems = new L.FeatureGroup().addTo(map);
+map.addControl(new L.Control.Draw({
+  draw: {polygon: true, polyline: true, rectangle: true, circle: false, marker: false, circlemarker: false},
+  edit: {featureGroup: drawnItems}
+}));
+map.on(L.Draw.Event.CREATED, function (e) {
+  var layer = e.layer;
+  drawnItems.addLayer(layer);
+  if (e.layerType === 'polygon' || e.layerType === 'rectangle') {
+    var area = 0;
+    layer.getLatLngs().forEach(function (ring) { area += L.GeometryUtil.geodesicArea(ring); });
+    layer.bindPopup('Diện tích:<br>' + area.toFixed(0) + ' m²<br>' + (area / 10000).toFixed(2) + ' ha').openPopup();
+  }
+  if (e.layerType === 'polyline') {
+    var ll = layer.getLatLngs(), d = 0;
+    for (var i = 0; i < ll.length - 1; i++) d += ll[i].distanceTo(ll[i + 1]);
+    layer.bindPopup('Chiều dài: ' + d.toFixed(0) + ' m').openPopup();
+  }
+});
+
+// ===== GPS (hien vi tri, khong keo ban do theo) =====
+if (navigator.geolocation) {
+  navigator.geolocation.watchPosition(function (pos) {
+    var ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+    if (!userMarker) userMarker = L.circleMarker(ll, {radius: 7, color: '#fff', weight: 2, fillColor: '#1565C0', fillOpacity: 1}).addTo(map);
+    else userMarker.setLatLng(ll);
+  }, function () {}, {enableHighAccuracy: true, maximumAge: 0, timeout: 10000});
+}
+
+// ===== STYLE =====
+function styleDat(f) {
+  var c = {cay_xanh: '#4CAF50', cong_nghiep: '#FF5722', cn_nho: '#FF8A65', dich_vu: '#9C27B0', ha_tang: '#2196F3',
+           mat_nuoc: '#03A9F4', ho_nuoc: '#00BCD4', tien_ich: '#FFC107', bai_xe: '#795548'}[f.properties.dat_all] || '#999';
+  return {color: '#222', weight: 1, fillColor: c, fillOpacity: 0.35};
+}
+var TEN_DAT = {cay_xanh: 'Cây xanh', cong_nghiep: 'Công nghiệp', cn_nho: 'Công nghiệp nhỏ', dich_vu: 'Dịch vụ',
+               ha_tang: 'Hạ tầng kỹ thuật', mat_nuoc: 'Mặt nước', ho_nuoc: 'Hồ nước', tien_ich: 'Tiện ích', bai_xe: 'Bãi xe'};
+function styleDuong(f) {
+  if (f.properties.duong_gt === 'tim') return {color: '#000', weight: 1.5, dashArray: '6,6'};
+  return {color: '#eee', weight: 2};
+}
+
+function lay(url) { return fetch(url).then(function (r) { return r.json(); }); }
+
+// ===== LOP NEN QUY HOACH =====
+var datLayer = L.geoJSON(null, {style: styleDat,
+  onEachFeature: function (f, l) { l.bindPopup('Loại đất: ' + (TEN_DAT[f.properties.dat_all] || f.properties.dat_all)); }}).addTo(map);
+var cayXanhLayer = L.geoJSON(null, {style: {color: '#1B5E20', weight: 1, fillColor: '#4CAF50', fillOpacity: .35}}).addTo(map);
+var duongLayer = L.geoJSON(null, {style: styleDuong}).addTo(map);
+var ranhLayer = L.geoJSON(null, {style: {color: '#FF0000', weight: 2, dashArray: '8,6'}}).addTo(map);
+var vungLayer = L.layerGroup().addTo(map);
+var vungBounds = {};
+
+Promise.all([lay('data/DAT_ALL_POLY_FINAL.geojson'), lay('data/DAT_CAYXANH_POLY_FINAL2.geojson'),
+             lay('data/DUONG_FINAL.geojson'), lay('data/RanhKCNHT.geojson')]).then(function (d) {
+  datLayer.addData(d[0]);
+  cayXanhLayer.addData(d[1]);
+  duongLayer.addData(d[2]);
+  ranhLayer.addData(d[3]);
+  veVung(d[0], d[2]);
+  map.invalidateSize();
+  map.fitBounds(ranhLayer.getBounds());
+});
+
+// ===== VE CAC VUNG UU TIEN =====
+function bangVung(v) {
+  var h = '<div class="popup"><table><tr><th colspan="2">' + v.ten + '</th></tr>' +
+    '<tr><td>Lô quy hoạch</td><td>' + v.loTen.join('<br>') + '</td></tr>' +
+    '<tr><td>Diện tích</td><td>' + v.dienTich + '</td></tr>' +
+    '<tr><td>Tiếp cận</td><td>' + v.tiepCan + '</td></tr>' +
+    '<tr><td>Ghi chú</td><td>' + v.ghiChu + '</td></tr>';
+  BUOC.forEach(function (b) { h += '<tr><td>' + b + '</td><td>' + ((v.tinhTrang || {})[b] || 'Chưa làm') + '</td></tr>'; });
+  return h + '</table></div>';
+}
+
+function veVung(dat, duong) {
+  var theoMa = {};
+  dat.features.forEach(function (f) { theoMa[f.properties.EntityHandle] = f; });
+  // ve vung lon truoc, vung 0 sau cung de nam tren
+  VUNG.slice().reverse().forEach(function (v) {
+    var nhom = L.featureGroup();
+    var laVung0 = v.ma === '0';
+    v.lo.forEach(function (ma) {
+      if (!theoMa[ma]) return;
+      L.geoJSON(theoMa[ma], {style: {color: v.mau, weight: laVung0 ? 4 : 3, dashArray: laVung0 ? '4,4' : null,
+        fillColor: v.mau, fillOpacity: laVung0 ? .45 : .3}}).addTo(nhom);
+    });
+    (v.duong || []).forEach(function (i) {
+      L.geoJSON(duong.features[i], {style: {color: v.mau, weight: 10, opacity: .6}}).addTo(nhom);
+    });
+    if (!nhom.getLayers().length) return;
+    nhom.bindPopup(bangVung(v), {maxWidth: 360});
+    nhom.addTo(vungLayer);
+    vungBounds[v.ma] = nhom.getBounds();
+    if (!laVung0) L.marker(nhom.getBounds().getCenter(), {icon: L.divIcon({className: 'nhan', html: 'Vùng ' + v.ma, iconSize: [60, 18]})}).addTo(vungLayer);
+  });
+  if (vungBounds['0']) L.marker(vungBounds['0'].getNorthWest(), {icon: L.divIcon({className: 'nhan', html: 'Vùng 0', iconSize: [60, 18], iconAnchor: [0, 18]})}).addTo(vungLayer);
+  vePanel();
+}
+
+// ===== BANG CAC VUNG =====
+function vePanel() {
+  var p = document.getElementById('panel');
+  var h = '';
+  VUNG.forEach(function (v) {
+    h += '<div class="vung" style="border-color:' + v.mau + '" data-ma="' + v.ma + '"><b>' + v.ten + '</b>' +
+         '<div class="dt">' + v.dienTich + '</div>' +
+         (vungBounds[v.ma] ? '' : '<div class="dt"><i>Chưa vẽ trên bản đồ</i></div>') + '</div>';
+  });
+  h += '<div class="chuthich">Thứ tự: vùng 0 tới hết vùng 1 trước; vùng 2, 3 sau vùng 0. Diện tích tương đối, số chính xác theo biên bản bàn giao với CSTN. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
+  p.innerHTML = h;
+  p.querySelectorAll('.vung').forEach(function (el) {
+    el.onclick = function () { var b = vungBounds[el.dataset.ma]; if (b) map.fitBounds(b, {padding: [40, 40]}); };
+  });
+}
+document.getElementById('btnPanel').onclick = function () { document.getElementById('panel').classList.toggle('an'); };
+
+// ===== CONTROL =====
+L.control.layers(
+  {'Vệ tinh': satellite, 'Bản đồ (OSM)': osm, 'Vệ tinh + tên đường': hybrid},
+  {'Vùng ưu tiên': vungLayer, 'Đất quy hoạch': datLayer, 'Cây xanh': cayXanhLayer, 'Đường': duongLayer, 'Ranh KCN': ranhLayer},
+  {collapsed: window.innerWidth < 600}
+).addTo(map);
+</script>
+</body>
+</html>
