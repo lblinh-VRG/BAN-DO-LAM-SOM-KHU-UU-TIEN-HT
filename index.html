@@ -27,6 +27,8 @@
   .popup td { border: 1px solid #ccc; padding: 3px 6px; vertical-align: top; }
   .nhan { background: none; border: 0; box-shadow: none; font: bold 14px "Times New Roman", serif;
           color: #fff; text-shadow: 0 0 3px #000, 0 0 3px #000; }
+  .nhanNau { background: rgba(255,255,255,.9); border: 1px solid #8C4A14; color: #8C4A14;
+             font: bold 13px "Times New Roman", serif; }
   @media (max-width: 600px) {
     #panel { left: 10px; right: 10px; width: auto; top: auto; bottom: 10px; max-height: 45%; }
     #top small { display: none; }
@@ -34,7 +36,7 @@
 </style>
 </head>
 <body>
-<div id="top">Khu ưu tiên làm sớm - KCN Hiệp Thạnh <small>(bản 04/11/2026)</small>
+<div id="top">Vùng ưu tiên bàn giao - KCN Hiệp Thạnh <small>(bản 16/11/2026, <a href="ban-04-11/" style="color:#fff">xem bản 04/11</a>)</small>
   <button id="btnPanel">Các vùng</button></div>
 <div id="map"></div>
 <div id="panel"></div>
@@ -125,7 +127,7 @@ Promise.all([lay('data/DAT_ALL_POLY_FINAL.geojson'), lay('data/DAT_CAYXANH_POLY_
   cayXanhLayer.addData(d[1]);
   duongLayer.addData(d[2]);
   ranhLayer.addData(d[3]);
-  veVung(d[0], d[2]);
+  veVung(d[0], d[1]);
   map.invalidateSize();
   map.fitBounds(ranhLayer.getBounds());
 });
@@ -141,29 +143,61 @@ function bangVung(v) {
   return h + '</table></div>';
 }
 
-function veVung(dat, duong) {
+function doiLL(r) { return r.map(function (p) { return [p[1], p[0]]; }); }
+
+function veVung(dat, cayXanh) {
   var theoMa = {};
   dat.features.forEach(function (f) { theoMa[f.properties.EntityHandle] = f; });
-  // ve vung lon truoc, vung 0 sau cung de nam tren
-  VUNG.slice().reverse().forEach(function (v) {
+  var kieu = function (v) { return {color: v.mau, weight: 3, fillColor: v.mau, fillOpacity: .3}; };
+  VUNG.forEach(function (v) {
     var nhom = L.featureGroup();
-    var laVung0 = v.ma === '0';
-    v.lo.forEach(function (ma) {
-      if (!theoMa[ma]) return;
-      L.geoJSON(theoMa[ma], {style: {color: v.mau, weight: laVung0 ? 4 : 3, dashArray: laVung0 ? '4,4' : null,
-        fillColor: v.mau, fillOpacity: laVung0 ? .45 : .3}}).addTo(nhom);
-    });
-    (v.duong || []).forEach(function (i) {
-      L.geoJSON(duong.features[i], {style: {color: v.mau, weight: 10, opacity: .6}}).addTo(nhom);
-    });
+    (v.lo || []).forEach(function (ma) { if (theoMa[ma]) L.geoJSON(theoMa[ma], {style: kieu(v)}).addTo(nhom); });
+    (v.loCX || []).forEach(function (i) { if (cayXanh.features[i]) L.geoJSON(cayXanh.features[i], {style: kieu(v)}).addTo(nhom); });
+    if (v.ranh) L.polygon(doiLL(v.ranh), kieu(v)).addTo(nhom);
     if (!nhom.getLayers().length) return;
     nhom.bindPopup(bangVung(v), {maxWidth: 360});
     nhom.addTo(vungLayer);
     vungBounds[v.ma] = nhom.getBounds();
-    if (!laVung0) L.marker(nhom.getBounds().getCenter(), {icon: L.divIcon({className: 'nhan', html: 'Vùng ' + v.ma, iconSize: [60, 18]})}).addTo(vungLayer);
+    L.marker(nhom.getBounds().getCenter(), {icon: L.divIcon({className: 'nhan', html: 'Vùng số ' + v.ma, iconSize: [80, 18]})}).addTo(vungLayer);
   });
-  if (vungBounds['0']) L.marker(vungBounds['0'].getNorthWest(), {icon: L.divIcon({className: 'nhan', html: 'Vùng 0', iconSize: [60, 18], iconAnchor: [0, 18]})}).addTo(vungLayer);
+  veNhaTam();
+  veMuiTen();
   vePanel();
+}
+
+// ===== KHU NHA TAM BAN QLDA =====
+var nhaTamLayer = L.featureGroup().addTo(map);
+function veNhaTam() {
+  NHA_TAM.dadam.forEach(function (r) { L.polygon(doiLL(r), {color: '#555', weight: 1, fillColor: '#ccc', fillOpacity: .9}).addTo(nhaTamLayer); });
+  L.polygon(doiLL(NHA_TAM.hanhlang), {color: '#0D47A1', weight: 1, fillColor: '#8CB3EB', fillOpacity: .95}).addTo(nhaTamLayer);
+  L.polygon(doiLL(NHA_TAM.panel), {color: '#0D47A1', weight: 1, fillColor: '#0D47A1', fillOpacity: .95}).addTo(nhaTamLayer);
+  nhaTamLayer.bindPopup('<div class="popup"><table><tr><th>Khu nhà tạm Ban QLDA</th></tr>' +
+    '<tr><td>Nhà panel mô-đun 10 x 20 m (khối panel 5 x 20 m, hành lang mái tôn, sân đá dăm), 5 - 8 người.<br>' +
+    'Góc Tây Bắc CXCC-15, sát ranh giáp nhà dân, đầu dãy cách mép đường nhựa 30 m.<br>Sân +8,50, nền +8,60.</td></tr></table></div>');
+  L.marker(nhaTamLayer.getBounds().getNorthWest(), {icon: L.divIcon({className: 'nhan', html: 'Khu nhà tạm', iconSize: [90, 18], iconAnchor: [90, 18]})}).addTo(nhaTamLayer);
+}
+
+// ===== MUI TEN: CHO DAT, RA PHA BOM MIN =====
+var muiTenLayer = L.featureGroup().addTo(map);
+function dauMui(a, b, mau) {
+  // a, b: [lat, lng]; tam giac dau mui tai b, huong a -> b
+  var kx = Math.cos(b[0] * Math.PI / 180), dx = (b[1] - a[1]) * kx, dy = b[0] - a[0], l = Math.sqrt(dx * dx + dy * dy);
+  var ux = dx / l, uy = dy / l, s = 0.00012, w = 0.00007;
+  var tip = [b[0] + uy * s, b[1] + ux * s / kx];
+  L.polygon([tip, [b[0] - ux * w, b[1] + uy * w / kx], [b[0] + ux * w, b[1] - uy * w / kx]],
+    {color: mau, weight: 1, fillColor: mau, fillOpacity: 1}).addTo(muiTenLayer);
+}
+function veMuiTen() {
+  var NAU = '#8C4A14', TIM = '#AA00FF';
+  var t = doiLL(DUONG_CHO_DAT.tuyen), n = doiLL(DUONG_CHO_DAT.nhanh);
+  var tuyen = L.polyline(t, {color: NAU, weight: 5, lineCap: 'round', lineJoin: 'round'}).addTo(muiTenLayer);
+  L.polyline(n, {color: NAU, weight: 5, lineCap: 'round'}).addTo(muiTenLayer);
+  dauMui(n[1], n[0], NAU); dauMui(n[1], n[2], NAU);
+  tuyen.bindTooltip('Hướng xe chở đất đào - đắp', {permanent: true, direction: 'right', className: 'nhanNau'});
+  HUONG_RPBM.tuyen.forEach(function (r) {
+    L.polyline(doiLL(r), {color: TIM, weight: 4}).addTo(muiTenLayer).bindTooltip('Hướng rà phá bom mìn');
+  });
+  L.polygon(doiLL(HUONG_RPBM.mui), {color: TIM, weight: 1, fillColor: TIM, fillOpacity: 1}).addTo(muiTenLayer);
 }
 
 // ===== BANG CAC VUNG =====
@@ -175,10 +209,14 @@ function vePanel() {
          '<div class="dt">' + v.dienTich + '</div>' +
          (vungBounds[v.ma] ? '' : '<div class="dt"><i>Chưa vẽ trên bản đồ</i></div>') + '</div>';
   });
-  h += '<div class="chuthich">Thứ tự: vùng 0 tới hết vùng 1 trước; vùng 2, 3 sau vùng 0. Diện tích tương đối, số chính xác theo biên bản bàn giao với CSTN. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
+  h += '<div class="vung" style="border-color:#0D47A1" data-ma="nt"><b>Khu nhà tạm Ban QLDA</b><div class="dt">Góc Tây Bắc CXCC-15 (trong vùng 2)</div></div>';
+  h += '<div class="chuthich">Đất đào ở vùng 1 chở lên đắp vùng 2 (mũi tên nâu); mũi tên tím là hướng rà phá bom mìn. Diện tích tương đối, số chính xác theo biên bản bàn giao với CSTN. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
   p.innerHTML = h;
   p.querySelectorAll('.vung').forEach(function (el) {
-    el.onclick = function () { var b = vungBounds[el.dataset.ma]; if (b) map.fitBounds(b, {padding: [40, 40]}); };
+    el.onclick = function () {
+      var b = el.dataset.ma === 'nt' ? nhaTamLayer.getBounds() : vungBounds[el.dataset.ma];
+      if (b) map.fitBounds(b, {padding: [40, 40], maxZoom: 19});
+    };
   });
 }
 document.getElementById('btnPanel').onclick = function () { document.getElementById('panel').classList.toggle('an'); };
@@ -186,7 +224,7 @@ document.getElementById('btnPanel').onclick = function () { document.getElementB
 // ===== CONTROL =====
 L.control.layers(
   {'Vệ tinh': satellite, 'Bản đồ (OSM)': osm, 'Vệ tinh + tên đường': hybrid},
-  {'Vùng ưu tiên': vungLayer, 'Đất quy hoạch': datLayer, 'Cây xanh': cayXanhLayer, 'Đường': duongLayer, 'Ranh KCN': ranhLayer},
+  {'Vùng ưu tiên': vungLayer, 'Khu nhà tạm': nhaTamLayer, 'Mũi tên chở đất, RPBM': muiTenLayer, 'Đất quy hoạch': datLayer, 'Cây xanh': cayXanhLayer, 'Đường': duongLayer, 'Ranh KCN': ranhLayer},
   {collapsed: window.innerWidth < 600}
 ).addTo(map);
 </script>
