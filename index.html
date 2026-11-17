@@ -44,7 +44,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.js"></script>
-<script src="data/vung.js?v=26.11.17b"></script>
+<script src="data/vung.js?v=26.11.17c"></script>
 <script>
 // ===== BASE MAP (theo khung trang HIEPTHANH-IP) =====
 var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19});
@@ -193,7 +193,7 @@ function veMuiTen() {
   var moi = doiLL(DUONG_CHO_DAT.moi), cu = doiLL(DUONG_CHO_DAT.cu), vao = doiLL(DUONG_CHO_DAT.vao);
   L.polyline(moi, {color: NAU, weight: 6}).addTo(muiTenLayer);
   L.polyline(cu, {color: NAU, weight: 4, dashArray: '10,8', lineJoin: 'round'}).addTo(muiTenLayer)
-    .bindTooltip('Đường hiện hữu, dài ~511 m (không bàn giao)', {permanent: true, direction: 'right', className: 'nhanNau'});
+    .bindTooltip('Đường hiện hữu, dài ~566 m (không bàn giao)', {permanent: true, direction: 'right', className: 'nhanNau'});
   L.polyline(vao, {color: NAU, weight: 4}).addTo(muiTenLayer);
   dauMui(vao[0], vao[1], NAU);
   HUONG_RPBM.tuyen.forEach(function (r) {
