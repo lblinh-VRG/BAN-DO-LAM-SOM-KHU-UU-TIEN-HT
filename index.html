@@ -44,7 +44,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/leaflet-geometryutil@0.10.3/src/leaflet.geometryutil.js"></script>
-<script src="data/vung.js?v=26.11.17"></script>
+<script src="data/vung.js?v=26.11.17b"></script>
 <script>
 // ===== BASE MAP (theo khung trang HIEPTHANH-IP) =====
 var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19});
@@ -193,7 +193,7 @@ function veMuiTen() {
   var moi = doiLL(DUONG_CHO_DAT.moi), cu = doiLL(DUONG_CHO_DAT.cu), vao = doiLL(DUONG_CHO_DAT.vao);
   L.polyline(moi, {color: NAU, weight: 6}).addTo(muiTenLayer);
   L.polyline(cu, {color: NAU, weight: 4, dashArray: '10,8', lineJoin: 'round'}).addTo(muiTenLayer)
-    .bindTooltip('Dùng đường lô hiện hữu, dài ~412 m (không bàn giao)', {permanent: true, direction: 'right', className: 'nhanNau'});
+    .bindTooltip('Đường hiện hữu, dài ~511 m (không bàn giao)', {permanent: true, direction: 'right', className: 'nhanNau'});
   L.polyline(vao, {color: NAU, weight: 4}).addTo(muiTenLayer);
   dauMui(vao[0], vao[1], NAU);
   HUONG_RPBM.tuyen.forEach(function (r) {
@@ -212,7 +212,7 @@ function vePanel() {
          (vungBounds[v.ma] ? '' : '<div class="dt"><i>Chưa vẽ trên bản đồ</i></div>') + '</div>';
   });
   h += '<div class="vung" style="border-color:#0D47A1" data-ma="nt"><b>Khu nhà tạm Ban QLDA</b><div class="dt">Góc Tây Bắc CXCC-15</div></div>';
-  h += '<div class="chuthich"><b>Cộng đề nghị bàn giao:</b> ' + TONG_BAN_GIAO + '<br>Đất đào chở theo đường nâu lên đắp DV-5 (nét liền: đoạn mở mới, bàn giao; nét đứt: đường lô hiện hữu, không bàn giao); mũi tên tím là hướng rà phá bom mìn. Diện tích sơ bộ, chính xác theo đo đạc, cắm mốc tại hiện trường. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
+  h += '<div class="chuthich"><b>Cộng đề nghị bàn giao:</b> ' + TONG_BAN_GIAO + '<br>Đất đào chở theo đường nâu lên đắp DV-5 (nét đứt: đường đất, đường lô hiện hữu, không bàn giao); mũi tên tím là hướng rà phá bom mìn. Diện tích sơ bộ, chính xác theo đo đạc, cắm mốc tại hiện trường. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
   p.innerHTML = h;
   p.querySelectorAll('.vung').forEach(function (el) {
     el.onclick = function () {
