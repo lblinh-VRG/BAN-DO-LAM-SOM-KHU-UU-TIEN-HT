@@ -36,7 +36,7 @@
 </style>
 </head>
 <body>
-<div id="top">Vùng ưu tiên bàn giao - KCN Hiệp Thạnh <small>(bản 16/11/2026, <a href="ban-04-11/" style="color:#fff">xem bản 04/11</a>)</small>
+<div id="top">Vùng ưu tiên bàn giao - KCN Hiệp Thạnh <small>(bản 17/11/2026, xem bản cũ <a href="ban-16-11/" style="color:#fff">16/11</a>, <a href="ban-04-11/" style="color:#fff">04/11</a>)</small>
   <button id="btnPanel">Các vùng</button></div>
 <div id="map"></div>
 <div id="panel"></div>
@@ -154,11 +154,12 @@ function veVung(dat, cayXanh) {
     (v.lo || []).forEach(function (ma) { if (theoMa[ma]) L.geoJSON(theoMa[ma], {style: kieu(v)}).addTo(nhom); });
     (v.loCX || []).forEach(function (i) { if (cayXanh.features[i]) L.geoJSON(cayXanh.features[i], {style: kieu(v)}).addTo(nhom); });
     if (v.ranh) L.polygon(doiLL(v.ranh), kieu(v)).addTo(nhom);
+    if (v.nuaPA1) L.polygon(doiLL(v.nuaPA1), {color: v.mau, weight: 2, dashArray: '8,6', fillColor: v.mau, fillOpacity: .45}).addTo(nhom);
     if (!nhom.getLayers().length) return;
     nhom.bindPopup(bangVung(v), {maxWidth: 360});
     nhom.addTo(vungLayer);
     vungBounds[v.ma] = nhom.getBounds();
-    L.marker(nhom.getBounds().getCenter(), {icon: L.divIcon({className: 'nhan', html: 'Vùng số ' + v.ma, iconSize: [80, 18]})}).addTo(vungLayer);
+    L.marker(nhom.getBounds().getCenter(), {icon: L.divIcon({className: 'nhan', html: v.nhan, iconSize: [110, 18]})}).addTo(vungLayer);
   });
   veNhaTam();
   veMuiTen();
@@ -189,11 +190,12 @@ function dauMui(a, b, mau) {
 }
 function veMuiTen() {
   var NAU = '#8C4A14', TIM = '#AA00FF';
-  var t = doiLL(DUONG_CHO_DAT.tuyen), n = doiLL(DUONG_CHO_DAT.nhanh);
-  var tuyen = L.polyline(t, {color: NAU, weight: 5, lineCap: 'round', lineJoin: 'round'}).addTo(muiTenLayer);
-  L.polyline(n, {color: NAU, weight: 5, lineCap: 'round'}).addTo(muiTenLayer);
-  dauMui(n[1], n[0], NAU); dauMui(n[1], n[2], NAU);
-  tuyen.bindTooltip('Hướng xe chở đất đào - đắp', {permanent: true, direction: 'right', className: 'nhanNau'});
+  var moi = doiLL(DUONG_CHO_DAT.moi), cu = doiLL(DUONG_CHO_DAT.cu), vao = doiLL(DUONG_CHO_DAT.vao);
+  L.polyline(moi, {color: NAU, weight: 6}).addTo(muiTenLayer);
+  L.polyline(cu, {color: NAU, weight: 4, dashArray: '10,8', lineJoin: 'round'}).addTo(muiTenLayer)
+    .bindTooltip('Dùng đường lô hiện hữu, dài ~412 m (không bàn giao)', {permanent: true, direction: 'right', className: 'nhanNau'});
+  L.polyline(vao, {color: NAU, weight: 4}).addTo(muiTenLayer);
+  dauMui(vao[0], vao[1], NAU);
   HUONG_RPBM.tuyen.forEach(function (r) {
     L.polyline(doiLL(r), {color: TIM, weight: 4}).addTo(muiTenLayer).bindTooltip('Hướng rà phá bom mìn');
   });
@@ -209,8 +211,8 @@ function vePanel() {
          '<div class="dt">' + v.dienTich + '</div>' +
          (vungBounds[v.ma] ? '' : '<div class="dt"><i>Chưa vẽ trên bản đồ</i></div>') + '</div>';
   });
-  h += '<div class="vung" style="border-color:#0D47A1" data-ma="nt"><b>Khu nhà tạm Ban QLDA</b><div class="dt">Góc Tây Bắc CXCC-15 (trong vùng 2)</div></div>';
-  h += '<div class="chuthich">Đất đào ở vùng 1 chở lên đắp vùng 2 (mũi tên nâu); mũi tên tím là hướng rà phá bom mìn. Diện tích tương đối, số chính xác theo biên bản bàn giao với CSTN. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
+  h += '<div class="vung" style="border-color:#0D47A1" data-ma="nt"><b>Khu nhà tạm Ban QLDA</b><div class="dt">Góc Tây Bắc CXCC-15</div></div>';
+  h += '<div class="chuthich"><b>Cộng đề nghị bàn giao:</b> ' + TONG_BAN_GIAO + '<br>Đất đào chở theo đường nâu lên đắp DV-5 (nét liền: đoạn mở mới, bàn giao; nét đứt: đường lô hiện hữu, không bàn giao); mũi tên tím là hướng rà phá bom mìn. Diện tích sơ bộ, chính xác theo đo đạc, cắm mốc tại hiện trường. Bấm một vùng để tới chỗ, bấm trên bản đồ xem chi tiết.</div>';
   p.innerHTML = h;
   p.querySelectorAll('.vung').forEach(function (el) {
     el.onclick = function () {
